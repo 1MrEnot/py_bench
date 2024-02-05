@@ -11,6 +11,7 @@ from py_bench.common import BenchObjExecutionResult, ParameterCase, CaseBenchmar
     CaseResultsComparison, TObj, BenchMethod
 from py_bench.result_comparer import ResultComparer
 from py_bench.result_visualizer import ResultFormatter, ResultPrinter
+from py_bench._dynamic_benchmark import DynamicBenchmarkSetup, _create_dynamic_benchmark_instance
 
 
 @dataclass
@@ -58,6 +59,19 @@ class BenchRunner:
             bench_call_visualiser.visualize(comparison_result)
 
         return bench_case_results
+
+    @classmethod
+    def run_functions(cls, setup: DynamicBenchmarkSetup,
+                      accuracy_settings: AccuracySettings = None,
+                      benchmark_executor: BenchmarkExecutor = None,
+                      result_comparer: ResultComparer = None,
+                      result_formatter: ResultFormatter = None,
+                      bench_call_visualiser: BenchmarkCallResultVisualizer = None) -> Optional[BenchObjExecutionResult]:
+
+        return cls.run(
+            _create_dynamic_benchmark_instance(setup),
+            accuracy_settings, benchmark_executor, result_comparer, result_formatter, bench_call_visualiser
+        )
 
     @classmethod
     def _analyze_bench(cls, bench_obj: TObj) -> BenchObjExecutionInfo:
