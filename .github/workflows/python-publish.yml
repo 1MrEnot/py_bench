@@ -1,6 +1,6 @@
 name: Publish
 on:
-  [release]
+  [release, workflow_dispatch]
   
 jobs:
   build:
