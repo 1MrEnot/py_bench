@@ -1,14 +1,14 @@
 from typing import Callable, TypeVar
 
-import numpy
+import numpy as np
 
 from py_bench.common import CaseResultsComparison
 
 TRes = TypeVar('TRes')
 Comparer = Callable[[TRes, TRes], bool]
 
-INITIAL_COMPARER_MAP = {
-    numpy.ndarray: numpy.allclose
+INITIAL_COMPARER_MAP: dict[TRes, Comparer] = {
+    np.ndarray: lambda a, b: a.shape == b.shape and np.allclose(a, b)
 }
 
 
@@ -42,9 +42,12 @@ class ResultComparerWrapper:
         self._comparer: Comparer = custom_comparer
 
     def __eq__(self, other: 'ResultComparerWrapper'):
-        if self._comparer:
-            return self._comparer(self.value, other.value)
-        return self.value == other.value
+        try:
+            if self._comparer:
+                return self._comparer(self.value, other.value)
+            return self.value == other.value
+        except Exception as e:
+            return False
 
     def __hash__(self):
         return 0
