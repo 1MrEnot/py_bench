@@ -1,3 +1,4 @@
+import os
 from itertools import chain
 from typing import Callable, Iterable
 
@@ -19,7 +20,7 @@ class MdResultFormatter(ResultFormatter):
     TIME_PREFIXES = ('ns', 'µs', 'ms', 's')
     DEFAULT_FLOAT_FORMAT = "%0.2f"
     BORDER = '|'
-    NEW_LINE = '\r\n'
+    NEW_LINE = os.linesep
 
     def __init__(self, min_col_width=3, max_col_width=20, argument_mappers=None):
         self._min_col_width: int = min_col_width
