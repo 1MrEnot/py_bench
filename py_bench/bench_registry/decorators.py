@@ -1,4 +1,9 @@
+from typing import TypeVar
+
 from py_bench.bench_registry.bench_regisrty import BenchRegistry
+
+
+TParam = TypeVar('TParam')
 
 
 def benchmark(f):
@@ -6,8 +11,8 @@ def benchmark(f):
     return f
 
 
-def param(*args):
-    def dumb_wrapper(f):
+def param(*args: TParam):
+    def dumb_wrapper(f) -> TParam:
         return BenchRegistry.save_param_marked_function(f, args)
 
     return dumb_wrapper

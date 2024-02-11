@@ -22,7 +22,7 @@ class AccuracySettings:
     """How many iterations must be executed. Overrides min and max iteration count"""
 
     invocation_count: Optional[int] = None
-    """How many method invocations per iterations must be executed. Overrides iteration time"""
+    """How many method invocations per iteration must be executed. Overrides iteration time"""
 
     min_iteration_time: timedelta = field(default=timedelta(seconds=0.25))
     """How much time should one iteration at least take"""
