@@ -79,7 +79,7 @@ class CaseBenchmarkExecutionResult:
 
 @dataclass
 class BenchmarkExecutionResult:
-    function_result: object
+    function_result: TRes
     mean: int
     median: int
     std_dev: int

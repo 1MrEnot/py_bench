@@ -6,7 +6,7 @@ import gc
 
 from py_bench.loader import Loader
 from py_bench.math_utils import MeasurementStatistics
-from py_bench.common import BenchmarkContext, BenchmarkExecutionResult
+from py_bench.common import BenchmarkContext, BenchmarkExecutionResult, TRes
 
 TimeInNs = int
 
@@ -62,11 +62,10 @@ class BenchmarkExecutor:
         invocation_count = self._find_perfect_invocation_count(ctx)
         ctx.log_started(invocation_count)
         workload_results = self._run_workload(invocation_count, ctx)
-        measurements_stats = MeasurementStatistics.from_measurements(workload_results)
-        function_result = ctx.call_method()
+        measurements_stats = MeasurementStatistics.from_measurements(workload_results.times)
 
         return BenchmarkExecutionResult(
-            function_result,
+            workload_results.function_call_result,
             int(measurements_stats.mean),
             int(measurements_stats.median),
             int(measurements_stats.std_dev),
@@ -119,7 +118,7 @@ class BenchmarkExecutor:
             if abs(new_invocation_count < invocation_count) <= 1 or down_count >= 3:
                 return invocation_count
 
-    def _run_workload(self, invocation_count: int, ctx: BenchmarkContext) -> list[TimeInNs]:
+    def _run_workload(self, invocation_count: int, ctx: BenchmarkContext) -> 'WorkloadResult':
         iteration_overhead = self._get_overhead_for_invocation_count(invocation_count)
 
         if self._settings.iteration_count:
@@ -128,21 +127,21 @@ class BenchmarkExecutor:
         return self._run_workload_auto(invocation_count, iteration_overhead, ctx)
 
     def _run_workload_specific(self, invocation_count: int,
-                               iteration_overhead: TimeInNs, ctx: BenchmarkContext) -> list[TimeInNs]:
-        results = []
+                               iteration_overhead: TimeInNs, ctx: BenchmarkContext) -> 'WorkloadResult':
+        workload_result = WorkloadResult()
         iter_count = self._settings.iteration_count
 
         with Loader(ctx.method_name, iter_count) as loader:
             for i in range(iter_count):
-                time = self._run_iteration_corrected(iteration_overhead, invocation_count, ctx)
-                results.append(time)
+                iteration_result = self._run_iteration_corrected(iteration_overhead, invocation_count, ctx)
+                workload_result.add_iteration_result(iteration_result)
                 loader.set_stage(i + 1)
 
-        return results
+        return workload_result
 
     def _run_workload_auto(self, invocation_count: int,
-                           iteration_overhead: TimeInNs, ctx: BenchmarkContext) -> list[TimeInNs]:
-        results = []
+                           iteration_overhead: TimeInNs, ctx: BenchmarkContext) -> 'WorkloadResult':
+        workload_result = WorkloadResult()
         iteration_idx = 0
         prev_stage = 0
 
@@ -150,10 +149,10 @@ class BenchmarkExecutor:
             while True:
                 iteration_idx += 1
 
-                time = self._run_iteration_corrected(iteration_overhead, invocation_count, ctx)
-                results.append(time)
+                iteration_res = self._run_iteration_corrected(iteration_overhead, invocation_count, ctx)
+                workload_result.add_iteration_result(iteration_res)
 
-                stats = MeasurementStatistics.from_measurements(results)
+                stats = MeasurementStatistics.from_measurements(workload_result.times)
                 margin = stats.confidence_interval.margin
                 max_err = stats.mean * self._settings.max_relative_error
 
@@ -170,15 +169,19 @@ class BenchmarkExecutor:
                 if iteration_idx >= self._settings.max_iteration_count:
                     break
 
-        return results
+        return workload_result
 
     @classmethod
-    def _run_iteration_corrected(cls, overhead: int, invocation_count: int, ctx: BenchmarkContext) -> TimeInNs:
+    def _run_iteration_corrected(cls, overhead: int, invocation_count: int, ctx: BenchmarkContext) -> 'IterationResult':
         gc.collect()
         start = perf_counter_ns()
+
+        res = None
         for _ in range(invocation_count):
-            ctx.call_method()
-        return int((perf_counter_ns() - start - overhead) / invocation_count)
+            res = ctx.call_method()
+
+        time_in_ns = int((perf_counter_ns() - start - overhead) / invocation_count)
+        return IterationResult(res, time_in_ns)
 
     @classmethod
     def _run_iteration(cls, invocation_count: int, ctx: BenchmarkContext) -> TimeInNs:
@@ -196,6 +199,21 @@ class BenchmarkExecutor:
             empty_function(self)
         stop = perf_counter_ns()
         return stop - start
+
+
+@dataclass
+class IterationResult:
+    function_call_result: TRes
+    time: TimeInNs
+
+@dataclass
+class WorkloadResult:
+    function_call_result: TRes = None
+    times: list[TimeInNs] = field(default_factory=list)
+
+    def add_iteration_result(self, iteration_result: IterationResult):
+        self.function_call_result = iteration_result.function_call_result
+        self.times.append(iteration_result.time)
 
 def empty_function(*args):
     return args
